@@ -9,12 +9,13 @@ from pathlib import Path
 import sys
 import pytz
 
+#Issue Query to Galaxy, either returning the result, or just the stats depending on boolean flag resultsRequested
 def issueQuery(query, resultsRequested):
     # open the cursor
     rows = None
 
     cur = trino_conn.cursor()
-    # execute the a simple query
+    #try executing the query
     try:
         cur.execute(query)
         rows = cur.fetchall()
@@ -24,15 +25,14 @@ def issueQuery(query, resultsRequested):
         print(e)
     
     if(resultsRequested):
-    # fetch all the rows. This will create a list type
         cur.close()
         print("Returning Results")
         return rows
     
     stats = cur.stats
     rows = None
-    #close the cursor
     cur.close()
+
     return stats
 
 #Issue Actual Query
@@ -45,6 +45,7 @@ def Query(query):
   
 class GalaxyDomain:
     
+    #get a Bearer Token
     def getBearerToken(self):
 
         auth_endpoint = "https://" + self.domain + "/oauth/v2/token"
@@ -57,7 +58,6 @@ class GalaxyDomain:
 
         response = requests.post(auth_endpoint, data=data, headers=headers)
 
-        #**Not sure this actually works - you may need to return it instead of setting it directly here
         try:
             self.bearerToken, self.bearerTokenExpiry = response.json()['access_token'], time.time() + response.json()['expires_in']
         except Exception as e:
@@ -73,12 +73,14 @@ class GalaxyDomain:
                 if currentCluster['trinoUri'] == 'https://' + self.clusterName + ':443':
                     print(f"ClusterName: {self.clusterName}, minWorkers: {currentCluster['minWorkers']}, maxWorkers: {currentCluster['maxWorkers']}, batchMode: {currentCluster['batchCluster']}, warpSpeedCluster: {currentCluster['warpResiliencyEnabled']}")
                     finalCluster = currentCluster
+
         return finalCluster
 
     #Set the ClusterID of the Test Cluster
     def setClusterID(self):
         
         clusterDetails = self.findCluster()
+
         return clusterDetails['clusterId']
 
 
@@ -110,9 +112,10 @@ class GalaxyDomain:
             'Authorization': 'Bearer ' + self.bearerToken,
             'Content-Type': 'application/x-www-form-urlencoded'
             }
+        
         return requests.get(endpoint, headers=headers).json()
 
-    #UPDATE CLUSTER
+    #Update Cluster
     def patchUpdateCluster(self, data):
 
         print("patchUpdateCluster: {0}".format(data))
@@ -131,16 +134,16 @@ class GalaxyDomain:
         response = requests.patch(endpoint, data = json.dumps(data), headers=headers)
         return response.json()
 
-    #DEF TURN OFF AND TURN ON CLUSTER
+    #Disable and then Re-enable Cluster to applyUpdates
     def effectUpdatesOnCluster(self):
 
-        #TURN OFF CLUSTER
+        #Disable Cluster
         self.patchUpdateCluster({'enabled': False})
 
-        #WAIT a bit
+        #Wait
         time.sleep(30)
 
-        #Turn on cluster
+        #Enable Cluster
         self.patchUpdateCluster({'enabled': True})
 
         iteration = 0
@@ -152,12 +155,13 @@ class GalaxyDomain:
         while((iteration < maxIterations) and currentClusterState != 'RUNNING'):
             time.sleep(10)
             currentClusterState = self.getCluster()['clusterState']
-            print(currentClusterState, datetime.datetime.fromtimestamp(time.time()))
+            print(currentClusterState + " " + self.clusterName + ", @", datetime.datetime.fromtimestamp(time.time()))
             iteration += 1
-
+    
+    #Change the size of the cluster (including autoscaling)
     def changeClusterSize(self, numberOfWorkers):
   
-        #autoscaling
+        #Check if autoscaling
         if(isinstance(numberOfWorkers, tuple)):
             if(numberOfWorkers[0] > numberOfWorkers[1]):
                 print("changeClusterSize: {0}, {1}".format(numberOfWorkers[1], numberOfWorkers[0]))
@@ -170,8 +174,8 @@ class GalaxyDomain:
             data = {'minWorkers': numberOfWorkers, 'maxWorkers': numberOfWorkers}
 
         self.patchUpdateCluster(data)
-        #self.effectUpdatesOnCluster()
 
+    #Change the cluster Type
     def changeClusterType(self, clusterTypeToTest):
 
         print("changeClusterType: {0}".format(clusterTypeToTest))
@@ -187,8 +191,8 @@ class GalaxyDomain:
                 data = {'processingMode' : 'WARP_SPEED', 'idleStopMinutes' : 60}
         print(data)
         self.patchUpdateCluster(data)
-        #self.effectUpdatesOnCluster()
 
+    #Change QueryResultCaching
     def changeResultCaching(self, resultCaching):
 
         print("changeResultCaching: {0}".format(resultCaching))
@@ -199,8 +203,8 @@ class GalaxyDomain:
             data = {'resultCacheEnabled' : True, 'resultCacheDefaultVisibilitySeconds' : resultCaching}
         print(data)
         self.patchUpdateCluster(data)
-        #self.effectUpdatesOnCluster()
 
+    #Initialize Connection to Cluster
     def __init__(self, clientID, key, domain, clusterName) -> None:
 
         clusterURL = (domain.split('.', 1))
@@ -221,23 +225,36 @@ class GalaxyDomain:
         self.clusterID = self.setClusterID()
         
 if __name__ == "__main__":
+    
+    #Define the credentials used to 
     galaxyUser = "galaxyUser/role"
     galaxyPassword = "galaxyPassword"
 
+    #Port to Galaxy (default is 443)
     galaxyPort = '443'
 
-    galaxyCluster = 'galaxyCluster'
+    #Defind the Galaxy URL used for testing
     galaxyURL = 'domain.galaxy.starburst.io'
 
+    #Define the Galaxy Cluster used for testing
+    galaxyCluster = 'galaxyCluster'
+
+    #Galaxy API Credentials to interact with APIs
     galaxyAPIClientID = "galaxyAPIClientID"
     galaxyAPIKey = "galaxyAPIKey"
 
 
-    clusterSizesToTest = [2, 4, 8]
-    RunsPerQuery = 5
+    #Define where your SQL files containing your queries are stored (default is in same directory as this script)
+    source_dir = Path('')
+    
+    ##Enter the parameters you wish to test here. 
+    # Leave clusterSizesToTest and/or clusterAutoScalingToTest as empty lists [] if you don't wish to test those
+    #runsPerQuery only accepts a single value
+    #clusterTypesToTest and resultCaching must have at least one value
+    clusterSizesToTest = [2]
+    runsPerQuery = 5
     clusterTypesToTest = ['standard', 'batch', 'ws']
-    clusterAutoScalingToTest = [(1,2), (1,3)]
-
+    clusterAutoScalingToTest = []
     resultCaching = [0]
 
     _domain = GalaxyDomain(galaxyAPIClientID, galaxyAPIKey, galaxyURL, galaxyCluster)
@@ -257,8 +274,6 @@ if __name__ == "__main__":
     listOfConfigs = []
 
     executionStartTime = datetime.datetime.now(pytz.timezone('UTC'))
-
-    source_dir = Path('')
 
     ##Main Loop
     for clusterType in clusterTypesToTest:
@@ -280,7 +295,7 @@ if __name__ == "__main__":
                 for file in files:
                     sql = open(file, mode='r', encoding='utf-8-sig').read().replace(';', '')
 
-                    for runPerQuery in range(RunsPerQuery):
+                    for runPerQuery in range(runsPerQuery):
                         print("run number: {0}".format(runPerQuery))
                         print("fixedClusterSize, file: {0}, runNumber: {1}, min: {2}, max: {3}, clusterType: {4}, resultCaching: {5}".format(file, runPerQuery, clusterSize, clusterSize, clusterType, resultCache))
                         
@@ -310,8 +325,8 @@ if __name__ == "__main__":
                 for file in files:
                     sql = open(file, mode='r', encoding='utf-8-sig').read().replace(';', '')
 
-                    for runPerQuery in range(RunsPerQuery):
-                        #print("run number: {0}".format(runPerQuery))
+                    for runPerQuery in range(runsPerQuery):
+                        print("run number: {0}".format(runPerQuery))
                         print("autoScaleCluster, file: {0}, runNumber: {1}, min: {2}, max: {3}, clusterType: {4}, resultCaching: {5}".format(file, runPerQuery, str(clusterAutoScale[0]), str(clusterAutoScale[1]), clusterType, resultCache))
                         
                         queryData = Query(sql)
@@ -320,42 +335,29 @@ if __name__ == "__main__":
                         #listOfConfigs.append((file, runPerQuery, clusterType, clusterAutoScale[0], clusterAutoScale[1], resultCache, queryData[0][0],queryData[0][1], str(queryData[0][12]-queryData[0][10]), queryData[0][13], queryData[0][14]))
                         listOfConfigs.append((file, runPerQuery, clusterType, clusterAutoScale[0], clusterAutoScale[1], resultCache, queryData[0][0]))
 
-    
-    #print(listOfConfigs)
     executionStopTime = datetime.datetime.now(pytz.timezone('UTC'))
-    currentTime = datetime.datetime.now(pytz.timezone('UTC'))
-
+  
     #resultsDF = pd.DataFrame(listOfConfigs, columns=['file','runPerQuery','clusterType','minSize','maxSize','resultCache','query_id','query_state', 'runtime', 'error_type', 'error_code'])
     resultsDF = pd.DataFrame(listOfConfigs, columns=['file','runPerQuery','clusterType','minSize','maxSize','resultCache','query_id'])
-    resultsDF.to_csv('results_' + str(currentTime) + '_.csv')
-
-
-
-    #Change Cluster back to a moderate size, as we just need to pull Telemetry
+    resultsDF.to_csv('results_' + str(executionStopTime) + '_.csv')
 
     #Take a time snapshot
     currentTime = time.time()
     print(currentTime)
 
-    print("\n\nModerating Cluster Size...\n")
-
+    #Change Cluster back to a moderate size, as we just need to pull Telemetry
+    print("\nModerating Cluster Size...\n")
     _domain.changeClusterSize(1)
     _domain.changeClusterType('standard')
     _domain.changeResultCaching(0)
     _domain.effectUpdatesOnCluster()
 
-    print("\n\nSleeping for 1 hour to allow Telemetry data to catch up...\n")
+    print("\nSleeping for 1 hour to allow Telemetry data to populate...\n")
     while(time.time() - currentTime < 3600):
         time.sleep(30)
-        print(time.time() - currentTime)
+        print("Seconds left: {0}".format(3600 - (time.time() - currentTime)))
 
-    # timer = 0
-    # while timer < 60:
-    #     print("Sleeping for: " + str(3600 - timer * 60) + " seconds")
-    #     time.sleep(60)
-    #     timer += 1
-
-
-    query = "SELECT query_id, query_state, round(to_unixtime(end_time) - to_unixtime(execution_start_time),3), query_state, index_and_cache_usage_overall, index_and_cache_usage_filtering, index_and_cache_usage_projection FROM \"galaxy_telemetry\".\"public\".\"query_history\" where create_time BETWEEN TIMESTAMP '" + str(executionStartTime).split("+")[0] + "' AND TIMESTAMP '" + str(executionStopTime + datetime.timedelta(seconds=60)).split("+")[0] + "'"
-    telemetryDF = pd.DataFrame(issueQuery(query, True), columns=['query_id', 'query_state', 'runtime', 'query_state', 'index_and_cache_usage_overall', 'index_and_cache_usage_filtering', 'index_and_cache_usage_projection'])
-    resultsDF.merge(telemetryDF, on='query_id', how='left').to_csv('results_with_telemetry' + str(currentTime) + '_.csv')
+    #Get the telemetry data, and join it. Finally save it to file
+    query = "SELECT query_id, round(to_unixtime(end_time) - to_unixtime(execution_start_time),3), query_state, index_and_cache_usage_overall, index_and_cache_usage_filtering, index_and_cache_usage_projection FROM \"galaxy_telemetry\".\"public\".\"query_history\" where create_time BETWEEN TIMESTAMP '" + str(executionStartTime).split("+")[0] + "' AND TIMESTAMP '" + str(executionStopTime + datetime.timedelta(seconds=60)).split("+")[0] + "'"
+    telemetryDF = pd.DataFrame(issueQuery(query, True), columns=['query_id', 'runtime', 'query_state', 'index_and_cache_usage_overall', 'index_and_cache_usage_filtering', 'index_and_cache_usage_projection'])
+    resultsDF.merge(telemetryDF, on='query_id', how='left').to_csv('results_with_telemetry' + str(executionStopTime) + '_.csv')
