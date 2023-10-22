@@ -226,7 +226,7 @@ class GalaxyDomain:
         
 if __name__ == "__main__":
     
-    #Define the credentials used to 
+    #Define the credentials used to issue queries to Galaxy
     galaxyUser = "galaxyUser/role"
     galaxyPassword = "galaxyPassword"
 
