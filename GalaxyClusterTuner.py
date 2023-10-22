@@ -245,7 +245,7 @@ if __name__ == "__main__":
 
 
     #Define where your SQL files containing your queries are stored (default is in same directory as this script)
-    source_dir = Path('')
+    source_dir = Path('SQLfiles')
     
     ##Enter the parameters you wish to test here. 
     # Leave clusterSizesToTest and/or clusterAutoScalingToTest as empty lists [] if you don't wish to test those
