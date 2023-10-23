@@ -1,5 +1,5 @@
 # GalaxyClusterTuner
-A Python Script to automate finding the optimal Cluster Configuration in Starburst Galaxy for your workloads
+A Python Script to automate finding the optimal Cluster Configuration in Starburst Galaxy for your workloads.
 
 Getting Ready to Execute the Scripts:
 Use an account with the ACCOUNTADMIN role to work through the steps in the guide here - it will help you get set up quickly:
