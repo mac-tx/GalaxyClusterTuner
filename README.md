@@ -21,14 +21,14 @@ Use an account with the ACCOUNTADMIN role to work through the steps in the guide
 8. Install Python Requirements
 
 9. Go to the __main__ section of the code, and update the code with the right authentication parameters to your Galaxy Cluster:
-if __name__ == "__main__":
-galaxyUser = "galaxyUser/role"
-galaxyPassword = "galaxyPassword"
-galaxyPort = '443'
-galaxyCluster = 'galaxyCluster'
-galaxyURL = 'domain.galaxy.starburst.io'
-galaxyAPIClientID = "galaxyAPIClientID"
-galaxyAPIKey = "galaxyAPIKey"
+  if __name__ == "__main__":
+  galaxyUser = "galaxyUser/role"
+  galaxyPassword = "galaxyPassword"
+  galaxyPort = '443'
+  galaxyCluster = 'galaxyCluster'
+  galaxyURL = 'domain.galaxy.starburst.io'
+  galaxyAPIClientID = "galaxyAPIClientID"
+  galaxyAPIKey = "galaxyAPIKey"
 
 10. Locate the SQL files you wish to test - keeping a single .SQL file per query you wish to execute. Either keep your SQL files in a subfolder called SQLfiles, or adjust the following path and copy your SQL files there. See the GitHub for example syntax.
 source_dir = Path('SQLfiles')
