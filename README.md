@@ -34,10 +34,9 @@ galaxyAPIKey = "galaxyAPIKey"
 source_dir = Path('SQLfiles')
 
 11. Configure the parameters you wish to use in the code
-clusterSizesToTest = [2, 4, 8, 16, 32]
+clusterSizesToTest = [(1,1), (2,2), (1,5), (1,7)]
 RunsPerQuery = 5
 clusterTypesToTest = ['standard', 'batch', 'ws']
-clusterAutoScalingToTest = [(1,2), (1,3), (1,5), (1,7)]
 resultCaching = [0, 60]
 
 12. Run the code! The code will loop through the configurations you have specified and the queries you wish to test
