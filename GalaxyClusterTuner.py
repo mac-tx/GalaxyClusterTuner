@@ -280,7 +280,7 @@ if __name__ == "__main__":
         _domain.changeClusterType(clusterType)
 
         for clusterSize in clusterSizesToTest:
-            print(str(clusterSize[0]) + ", " + str(clusterSize[1]))
+
             #we don't support autoscaling for WS type clusters right now (October 10, 2023)
             if(((clusterType) == 'ws') and (clusterSize[0] != clusterSize[1])):
                 print("Autoscaling on Warp Speed not currently supported! Skipping test...")
