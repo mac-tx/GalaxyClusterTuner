@@ -83,7 +83,6 @@ class GalaxyDomain:
 
         return clusterDetails['clusterId']
 
-
     #Return all the clusters in the account
     def listCluster(self):
         
@@ -132,6 +131,7 @@ class GalaxyDomain:
             }
 
         response = requests.patch(endpoint, data = json.dumps(data), headers=headers)
+        
         return response.json()
 
     #Disable and then Re-enable Cluster to applyUpdates
@@ -243,18 +243,16 @@ if __name__ == "__main__":
     galaxyAPIClientID = "galaxyAPIClientID"
     galaxyAPIKey = "galaxyAPIKey"
 
-
     #Define where your SQL files containing your queries are stored (default is in same directory as this script)
     source_dir = Path('SQLfiles')
     
     ##Enter the parameters you wish to test here. 
-    # Leave clusterSizesToTest and/or clusterAutoScalingToTest as empty lists [] if you don't wish to test those
+    #clusterSizesToTest accepts a tuple
     #runsPerQuery only accepts a single value
     #clusterTypesToTest and resultCaching must have at least one value
-    clusterSizesToTest = [2]
-    runsPerQuery = 5
+    clusterSizesToTest = [(1,1), (2,2), (1,2), (2,3)]
+    runsPerQuery = 1
     clusterTypesToTest = ['standard', 'batch', 'ws']
-    clusterAutoScalingToTest = []
     resultCaching = [0]
 
     _domain = GalaxyDomain(galaxyAPIClientID, galaxyAPIKey, galaxyURL, galaxyCluster)
@@ -275,12 +273,19 @@ if __name__ == "__main__":
 
     executionStartTime = datetime.datetime.now(pytz.timezone('UTC'))
 
-    ##Main Loop
+    source_dir = Path('SQLfiles')
+
     for clusterType in clusterTypesToTest:
 
         _domain.changeClusterType(clusterType)
 
         for clusterSize in clusterSizesToTest:
+            print(str(clusterSize[0]) + ", " + str(clusterSize[1]))
+            #we don't support autoscaling for WS type clusters right now (October 10, 2023)
+            if(((clusterType) == 'ws') and (clusterSize[0] != clusterSize[1])):
+                print("Autoscaling on Warp Speed not currently supported! Skipping test...")
+                continue
+
             _domain.changeClusterSize(clusterSize)
 
             for resultCache in resultCaching:
@@ -297,44 +302,14 @@ if __name__ == "__main__":
 
                     for runPerQuery in range(runsPerQuery):
                         print("run number: {0}".format(runPerQuery))
-                        print("fixedClusterSize, file: {0}, runNumber: {1}, min: {2}, max: {3}, clusterType: {4}, resultCaching: {5}".format(file, runPerQuery, clusterSize, clusterSize, clusterType, resultCache))
+                        print("File: {0}, runNumber: {1}, min: {2}, max: {3}, clusterType: {4}, resultCaching: {5}".format(file, runPerQuery, clusterSize[0], clusterSize[1], clusterType, resultCache))
                         
                         queryData = Query(sql)
-                        print(queryData[0])
+                        #print(queryData[0])
 
                         #listOfConfigs.append((file, runPerQuery, clusterType, clusterSize, clusterSize, resultCache, queryData[0][0],queryData[0][1], str(queryData[0][12]-queryData[0][10]), queryData[0][13], queryData[0][14]))
-                        listOfConfigs.append((file, runPerQuery, clusterType, clusterSize, clusterSize, resultCache, queryData[0][0]))
-
-        for clusterAutoScale in clusterAutoScalingToTest:
-            #we don't support autoscaling for WS type clusters right now (October 10, 2023)
-            if(((clusterType) == 'ws') and (clusterAutoScale[0] != clusterAutoScale[1])):
-                print("Autoscaling on Warp Speed not currently supported! Skipping test...")
-                continue
-
-            _domain.changeClusterSize(clusterAutoScale)
-
-            for resultCache in resultCaching:
-                #Cast to integer as non-integer cache value not supported
-                resultCache = int(resultCache)
-                _domain.changeResultCaching(resultCache)
-                _domain.effectUpdatesOnCluster()
-                
-                files = source_dir.iterdir()
-                files = source_dir.glob('*.sql')
-                
-                for file in files:
-                    sql = open(file, mode='r', encoding='utf-8-sig').read().replace(';', '')
-
-                    for runPerQuery in range(runsPerQuery):
-                        print("run number: {0}".format(runPerQuery))
-                        print("autoScaleCluster, file: {0}, runNumber: {1}, min: {2}, max: {3}, clusterType: {4}, resultCaching: {5}".format(file, runPerQuery, str(clusterAutoScale[0]), str(clusterAutoScale[1]), clusterType, resultCache))
-                        
-                        queryData = Query(sql)
-
-                        print(queryData[0])
-                        #listOfConfigs.append((file, runPerQuery, clusterType, clusterAutoScale[0], clusterAutoScale[1], resultCache, queryData[0][0],queryData[0][1], str(queryData[0][12]-queryData[0][10]), queryData[0][13], queryData[0][14]))
-                        listOfConfigs.append((file, runPerQuery, clusterType, clusterAutoScale[0], clusterAutoScale[1], resultCache, queryData[0][0]))
-
+                        listOfConfigs.append((file, runPerQuery, clusterType, clusterSize[0], clusterSize[1], resultCache, queryData[0][0]))
+    
     executionStopTime = datetime.datetime.now(pytz.timezone('UTC'))
   
     #resultsDF = pd.DataFrame(listOfConfigs, columns=['file','runPerQuery','clusterType','minSize','maxSize','resultCache','query_id','query_state', 'runtime', 'error_type', 'error_code'])
@@ -354,10 +329,10 @@ if __name__ == "__main__":
 
     print("\nSleeping for 1 hour to allow Telemetry data to populate...\n")
     while(time.time() - currentTime < 3600):
-        time.sleep(30)
-        print("Seconds left: {0}".format(3600 - (time.time() - currentTime)))
+        time.sleep(60)
+        print("Minutes left: {0}".format((3600 - (time.time() - currentTime))/60))
 
-    #Get the telemetry data, and join it. Finally save it to file
+    #Get the telemetry data, and join it. Finally save the complete results as a csv
     query = "SELECT query_id, round(to_unixtime(end_time) - to_unixtime(execution_start_time),3), query_state, index_and_cache_usage_overall, index_and_cache_usage_filtering, index_and_cache_usage_projection FROM \"galaxy_telemetry\".\"public\".\"query_history\" where create_time BETWEEN TIMESTAMP '" + str(executionStartTime).split("+")[0] + "' AND TIMESTAMP '" + str(executionStopTime + datetime.timedelta(seconds=60)).split("+")[0] + "'"
     telemetryDF = pd.DataFrame(issueQuery(query, True), columns=['query_id', 'runtime', 'query_state', 'index_and_cache_usage_overall', 'index_and_cache_usage_filtering', 'index_and_cache_usage_projection'])
     resultsDF.merge(telemetryDF, on='query_id', how='left').to_csv('results_with_telemetry' + str(executionStopTime) + '_.csv')
