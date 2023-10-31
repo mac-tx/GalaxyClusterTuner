@@ -1,0 +1,6 @@
+trino
+pandas
+requests
+datetime
+pathlib
+pytz
