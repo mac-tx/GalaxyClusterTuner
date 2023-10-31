@@ -335,7 +335,7 @@ if __name__ == "__main__":
     #Port to Galaxy (default is 443)
     galaxyPort = '443'
 
-    #Defind the Galaxy URL used for testing
+    #Define the Galaxy URL used for testing
     galaxyURL = 'domain.galaxy.starburst.io'
 
     #Define the Galaxy Cluster used for testing
@@ -432,7 +432,6 @@ if __name__ == "__main__":
 
     #Take a time snapshot
     currentTime = time.time()
-    print(currentTime)
 
     #Sleep for 1 hour, let telemetry catch up
     print("\nSleeping for 1 hour to allow Telemetry data to populate...\n")
