@@ -339,7 +339,7 @@ if __name__ == "__main__":
     galaxyURL = 'domain.galaxy.starburst.io'
 
     #Define the Galaxy Cluster used for testing
-    galaxyCluster = 'galaxyCluster'
+    galaxyTestCluster = 'galaxyCluster'
 
     #Galaxy API Credentials to interact with APIs
     galaxyAPIClientID = "galaxyAPIClientID"
