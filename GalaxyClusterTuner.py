@@ -437,7 +437,7 @@ if __name__ == "__main__":
     print("\nSleeping for 1 hour to allow Telemetry data to populate...\n")
     while(time.time() - currentTime < 3600):
         time.sleep(120)
-        print("Minutes left: {0}".format(round(3600 - (time.time() - currentTime)/60,1)))
+        print("Minutes left: {0}".format(round((3600 - (time.time() - currentTime))/60,1)))
 
     #Create the telemetry cluster. It must be created in AWS US-EAST-1, as that is the cloud/region of Galaxy Telemetry Catalog
     data = {
